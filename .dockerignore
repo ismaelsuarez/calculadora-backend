@@ -1,0 +1,22 @@
+# Lo que NO se copia a la imagen.
+# Menos peso, build mas rapido y menos chance de subir basura al servidor.
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Los tests y sus dependencias no van a produccion. Se corren en la
+# integracion continua, ANTES de que este Dockerfile se ejecute.
+test_main.py
+requirements-dev.txt
+
+# La definicion de la integracion continua es para GitHub, no para el servidor.
+.github/
+
+# Historia de git: son megabytes que la imagen no necesita.
+.git/
+
+# Secretos. Nunca, bajo ninguna circunstancia, adentro de una imagen.
+.env
+*.env

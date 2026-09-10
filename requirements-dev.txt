@@ -1,0 +1,17 @@
+# Dependencias de DESARROLLO.
+#
+# Todo lo que hace falta para trabajar en el proyecto y correr los tests, pero
+# que NO tiene por que estar en el servidor.
+#
+# Se instala junto con las de produccion:
+#     pip install -r requirements.txt -r requirements-dev.txt
+#
+# El Dockerfile, en cambio, copia e instala SOLO requirements.txt. Esa es toda
+# la separacion: un archivo que entra a la imagen y otro que no.
+
+pytest==9.0.2
+
+# httpx lo necesita el TestClient de FastAPI para hablarle a la app en memoria.
+# En produccion no hace falta porque nadie le hace pedidos a la API desde la
+# propia API.
+httpx==0.28.1

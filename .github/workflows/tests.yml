@@ -1,0 +1,109 @@
+# Integracion continua: correr los tests en cada push y en cada pull request.
+#
+# Hasta ahora, cualquier push a main llegaba a produccion sin que nadie
+# ejecutara las pruebas. Un cambio roto se deployaba igual.
+#
+# Este archivo hace que una maquina limpia clone el repositorio, instale las
+# dependencias desde cero y corra los tests. Cada vez. Sin acordarse.
+#
+# OJO: esto SOLO informa. Para que ademas BLOQUEE la integracion hay que
+# activar la proteccion de rama en GitHub:
+#     Settings -> Branches -> Add rule sobre main
+#     -> Require status checks to pass before merging -> elegir "pytest"
+#
+# Sin ese paso, el tilde rojo aparece y cualquiera puede mergear igual.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Se instalan los DOS archivos: las dependencias de produccion mas las
+      # de desarrollo. Es el unico lugar donde hace falta pytest, y por eso es
+      # el unico lugar donde se instala.
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      # Sin DATABASE_URL definida, la API arranca sin historial y los tests
+      # verifican justamente ese camino. No hace falta levantar un Postgres
+      # para correr la suite, y eso es una consecuencia directa de haber
+      # diseñado la persistencia como opcional.
+      - name: Correr los tests
+        run: pytest -q
+
+  # -------------------------------------------------------------------------
+  # Despliegue automatico
+  # -------------------------------------------------------------------------
+  # Easypanel te da, en la pestaña Deployments del servicio, una URL que
+  # dispara un redespliegue cuando alguien le pega. Hay DOS formas de usarla y
+  # la diferencia es todo:
+  #
+  #   1. Dandosela a GitHub como webhook del repositorio. GitHub la llama en
+  #      CADA push, y no tiene idea de que estos tests existen. Si la suite
+  #      esta en rojo, el codigo roto se deploya igual.
+  #
+  #   2. Llamandola desde aca, con needs: pytest. Es lo que hacemos.
+  #
+  # La segunda es la unica que respeta el orden correcto: primero se verifica,
+  # despues se deploya. Automatizar sin verificar no es una mejora — es
+  # automatizar la llegada de errores a produccion, mas rapido y con menos
+  # supervision.
+  deploy:
+    # needs es el mecanismo entero. Este job NO ARRANCA si pytest no termino
+    # en verde. No hay que acordarse de nada ni depender de la disciplina de
+    # nadie: la maquina no deploya y listo.
+    needs: pytest
+
+    # Y este if evita el error que se comete siempre: sin el, cada pull
+    # request te redeploya PRODUCCION. Solo cuando el push es a main.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Avisarle a Easypanel que redespliegue
+        env:
+          # OJO: el token viene ADENTRO de la URL, asi que la URL entera es
+          # una credencial. Cualquiera que la tenga puede disparar deploys en
+          # tu servidor. Va en Settings -> Secrets and variables -> Actions,
+          # NUNCA escrita en este archivo.
+          #
+          # Si se te llega a escapar, borrarla de un commit posterior no la
+          # elimina: queda en el historial. La unica respuesta correcta es
+          # rotarla (Easypanel tiene el boton para refrescar el token) y
+          # actualizar el secret aca.
+          URL_DE_DEPLOY: ${{ secrets.EASYPANEL_DEPLOY_URL }}
+
+        run: |
+          # Si el secret todavia no esta cargado, avisamos y salimos BIEN.
+          # ¿Por que no fallar? Porque el repositorio tiene que poder clonarse
+          # y correr sus tests sin tener acceso a ningun servidor. Un fork, un
+          # alumno de otro grupo, la maquina de al lado: todos tienen que ver
+          # la suite en verde. Lo unico que no van a poder hacer es deployar.
+          if [ -z "$URL_DE_DEPLOY" ]; then
+            echo "El secret EASYPANEL_DEPLOY_URL no esta cargado: no hay a quien avisarle."
+            echo "Se carga en Settings -> Secrets and variables -> Actions."
+            echo "La URL sale de Easypanel -> servicio api -> Deployments."
+            exit 0
+          fi
+
+          # -f hace que curl falle si el servidor contesta un error. Sin esa
+          # bandera, curl devuelve exito aunque le contesten 401, y te queda
+          # un deploy que "salio bien" y nunca ocurrio.
+          # -sS calla la barra de progreso pero deja pasar los errores.
+          curl -fsS -X POST "$URL_DE_DEPLOY"
+          echo ""
+          echo "Redespliegue disparado. Segui el avance en el panel."

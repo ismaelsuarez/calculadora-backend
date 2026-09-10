@@ -1,0 +1,37 @@
+# Cada repositorio necesita SU PROPIO .gitignore.
+#
+# Un .gitignore en una carpeta que no es un repositorio no protege a nadie.
+# Este archivo tiene que estar acá adentro, versionado junto con el codigo.
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Editores
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# SECRETOS — esta seccion es la que importa de verdad.
+#
+# Nada de esto va nunca a un repositorio. En produccion las variables se
+# cargan en el panel (Easypanel -> Environment), no en un archivo.
+#
+# Y OJO: si alguna vez subis una credencial por error, borrarla en un commit
+# posterior NO la elimina. Queda en el historial y cualquiera que clone el
+# repositorio la puede recuperar. La unica respuesta correcta es ROTARLA:
+# darla de baja y generar una nueva. Reescribir el historial es un parche.
+.env
+*.env
+*.pem
+*.key

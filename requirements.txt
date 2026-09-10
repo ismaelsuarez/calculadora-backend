@@ -1,0 +1,34 @@
+# Dependencias de PRODUCCION.
+#
+# Solo lo que la aplicacion necesita para CORRER. Las herramientas de testeo
+# ahora viven en requirements-dev.txt y NO entran a la imagen.
+#
+# ¿Por que separarlas? Porque todo lo que metes en la imagen de produccion es
+# codigo que se descarga, ocupa lugar y —sobre todo— puede tener
+# vulnerabilidades. pytest no aporta nada en el servidor: nadie va a correr
+# tests ahi. Cuanto mas chica la imagen, menos superficie de ataque y mas
+# rapido el deploy.
+#
+# Versiones FIJADAS a proposito.
+#
+# Sin el "==", pip instala la ultima version disponible el dia que corras el
+# comando. Eso significa que vos y un companero pueden terminar con versiones
+# distintas, y que este proyecto puede dejar de andar dentro de seis meses sin
+# que nadie haya tocado una linea de codigo.
+#
+# Fijar versiones es la diferencia entre "en mi maquina anda" y "anda".
+# Para actualizar a proposito: cambias el numero y corres los tests.
+
+fastapi==0.124.4
+uvicorn[standard]==0.38.0
+
+# Cliente de PostgreSQL, para el historial.
+#
+# Los corchetes son "extras": subconjuntos opcionales del paquete.
+#   binary -> trae el driver ya compilado, asi no hace falta un compilador de
+#             C ni las cabeceras de libpq adentro de la imagen slim.
+#   pool   -> agrega psycopg_pool, el pool de conexiones que usa db.py.
+#
+# OJO: esta dependencia es opcional en tiempo de EJECUCION. db.py solo la
+# importa si DATABASE_URL esta definida, asi que la API arranca igual sin base.
+psycopg[binary,pool]==3.3.4
