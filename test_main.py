@@ -397,3 +397,30 @@ def test_el_historial_rechaza_limites_fuera_de_rango(limite, monkeypatch):
     respuesta = client.get(f"/api/historial?limite={limite}")
 
     assert respuesta.status_code == 422
+
+@pytest.mark.parametrize("persistencia", [False, True])
+def test_salud_admite_head_sin_modificar_get(
+    monkeypatch: pytest.MonkeyPatch,
+    persistencia: bool,
+) -> None:
+    monkeypatch.setattr(db, "hay_persistencia", lambda: persistencia)
+
+    respuesta_get = client.get("/api/salud")
+    respuesta_head = client.head("/api/salud")
+
+    assert respuesta_get.status_code == 200
+    assert respuesta_get.json() == {
+        "estado": "ok",
+        "persistencia": persistencia,
+    }
+
+    assert respuesta_head.status_code == 200
+    assert respuesta_head.content == b""
+    assert (
+        respuesta_head.headers["content-type"]
+        == respuesta_get.headers["content-type"]
+    )
+    assert (
+        respuesta_head.headers["content-length"]
+        == respuesta_get.headers["content-length"]
+    )
